@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+
+PARAMS=""
+POSITIONAL=()
+while [[ $# -gt 0 ]]; do
+    key="$1"
+    case $key in
+        # Flags
+        -h|--help)
+            echo "Required args: --input, --output, --seed, --net"
+            exit 1
+            ;;  
+        -b)
+            BUILD=1
+            shift
+            ;;              
+        # Variables
+        -*|--*=) # unsupported flags
+            echo "Error: Unsupported flag $1" >&2
+            shift
+            ;;
+        *) # preserve positional arguments
+            PARAMS="$PARAMS $1"
+            ;;
+    esac
+done
+
+# set positional arguments in their proper place
+eval set -- "$PARAMS"
+
+if [[ BUILD -gt 0 ]]; then
+    docker build -t detectron2:latest .
+    cd $BASE_DIR
+fi
+
+xhost +local:`docker inspect --format='{{ .Config.Hostname }}' detectron2`
+docker run --gpus all -it --shm-size=8g \
+    --env="DISPLAY" \
+    --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" \
+    --volume=$HOME/.torch/fvcore_cache:/tmp:rw \
+    -v $HOME/github/detectron2:/my-detectron \
+    -v `pwd`:/scratch -w /home/appuser/detectron2_repo \
+    --device=/dev/video0:/dev/video0 \
+    detectron2-deploy:v0

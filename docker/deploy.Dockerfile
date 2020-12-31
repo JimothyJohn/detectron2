@@ -1,4 +1,3 @@
-# Copyright (c) Facebook, Inc. and its affiliates.
 # This file defines a container that compiles the C++ examples of detectron2.
 # See docker/README.md for usage.
 
@@ -9,9 +8,15 @@ USER appuser
 ENV HOME=/home/appuser
 WORKDIR $HOME
 
+ARG DEBIAN_FRONTEND=noninteractive
+ARG DEBCONF_NONINTERACTIVE_SEEN=true
 ENV CMAKE_PREFIX_PATH=$HOME/.local/lib/python3.6/site-packages/torch/
 
-RUN sudo apt-get update && sudo apt-get install libgflags-dev libgoogle-glog-dev libopencv-dev --yes
+# Fix from https://github.com/phusion/baseimage-docker/issues/58#issuecomment-47995343
+RUN echo 'debconf debconf/frontend select Noninteractive' | sudo debconf-set-selections
+RUN sudo apt-get update && DEBIAN_FRONTEND=noninteractive && \
+	DEBCONF_NONINTERACTIVE_SEEN=true && sudo apt-get install --no-install-recommends \
+	libgflags-dev -y libgoogle-glog-dev -y libopencv-dev -y
 RUN pip install mkl-include
 
 # Install the correct version of protobuf:
@@ -36,3 +41,8 @@ ENV CPATH=$HOME/.local/include \
 RUN cd detectron2_repo/tools/deploy && mkdir build && cd build && \
 	 cmake -DTORCH_CUDA_ARCH_LIST=$TORCH_CUDA_ARCH_LIST .. && make
 # binaries will be available under tools/deploy/build
+
+# My additions
+RUN pip install opencv-python
+COPY ./main.py $HOME/detectron2_repo
+COPY ./projectron/ $HOME/detectron2_repo/projectron/
